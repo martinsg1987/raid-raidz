@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simulador ZFS RAID-Z</title>
+<style>
+:root{--bg:#f2f4f6;--card:#fff;--tx:#18222b;--tx2:#566472;--bd:#d3d9df;--d-bg:#e9edf1;--d-tx:#23303c;--p-bg:#d6e6fa;--p-tx:#0c3d70;--q-bg:#e4defa;--q-tx:#3a2f87;--r-bg:#fbe9c8;--r-tx:#6a3f06;--m-bg:#d2f0e4;--m-tx:#0b4a39;--x-bg:#fbdcdc;--x-tx:#8f2121;--ok-bg:#dcf0cc;--ok-tx:#2c5410;--btn:#18222b;--btn-tx:#fff;--code:#101820;--code-tx:#cfe8ff}
+@media(prefers-color-scheme:dark){:root{--bg:#12181d;--card:#1b242c;--tx:#e8edf1;--tx2:#9aa8b4;--bd:#33414c;--d-bg:#26323c;--d-tx:#dbe3ea;--p-bg:#16406f;--p-tx:#c4defa;--q-bg:#3a3380;--q-tx:#d9d3fa;--r-bg:#5f3d0a;--r-tx:#fbe3b8;--m-bg:#0e4f3d;--m-tx:#bdeedd;--x-bg:#6b2020;--x-tx:#fbcfcf;--ok-bg:#2b4b14;--ok-tx:#d0efbb;--btn:#e8edf1;--btn-tx:#12181d;--code:#0a0f13;--code-tx:#cfe8ff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:22px;font-weight:600;margin:0 0 4px}
+.sub{color:var(--tx2);margin:0 0 18px;font-size:14px}
+.lv{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+button{font:inherit;cursor:pointer}
+.lv button{padding:7px 14px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:8px;font-size:14px}
+.lv button[aria-pressed=true]{background:var(--btn);color:var(--btn-tx);border-color:var(--btn)}
+button:focus-visible,input:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px}
+.ctl{display:flex;flex-wrap:wrap;gap:18px;align-items:center;font-size:14px}
+.ctl label{display:flex;align-items:center;gap:8px;color:var(--tx2)}
+.ctl input[type=number]{width:70px;padding:5px 8px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);font:inherit}
+.ctl output{min-width:22px;color:var(--tx);font-weight:600}
+.act{padding:6px 12px;border:1px solid var(--bd);background:transparent;color:var(--tx);border-radius:8px;font-size:13px}
+.act:hover{background:var(--d-bg)}
+.scroll{overflow-x:auto}
+.arr{display:grid;gap:6px;min-width:560px}
+.gl{font-size:12px;color:var(--tx2);text-align:center;border-bottom:2px solid var(--bd);padding-bottom:2px}
+.dh{padding:6px 2px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font-size:12px;text-align:center;line-height:1.3}
+.dh.f{background:var(--x-bg);color:var(--x-tx);border-color:var(--x-tx)}
+.dh small{display:block;color:var(--tx2);font-size:11px}
+.dh.f small{color:var(--x-tx)}
+.c{border-radius:6px;text-align:center;padding:7px 0;font:600 12.5px ui-monospace,Consolas,monospace;background:var(--d-bg);color:var(--d-tx)}
+.c.p{background:var(--p-bg);color:var(--p-tx)}
+.c.q{background:var(--q-bg);color:var(--q-tx)}
+.c.r{background:var(--r-bg);color:var(--r-tx)}
+.c.m{background:var(--m-bg);color:var(--m-tx)}
+.c.x{background:var(--x-bg);color:var(--x-tx)}
+.c.pad{background:transparent;border:1px dashed var(--bd);color:var(--tx2);font-weight:400}
+.leg{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--tx2);margin-top:12px}
+.leg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.note{font-size:12.5px;color:var(--tx2);margin:10px 0 0}
+.st{padding:10px 14px;border-radius:8px;font-size:14px;margin-bottom:14px}
+.st.ok{background:var(--ok-bg);color:var(--ok-tx)}
+.st.dg{background:var(--r-bg);color:var(--r-tx)}
+.st.lo{background:var(--x-bg);color:var(--x-tx)}
+.st code{font:600 13px ui-monospace,Consolas,monospace}
+.met{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.met div{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px}
+.met span{display:block;font-size:12px;color:var(--tx2)}
+.met b{font-size:18px;font-weight:600}
+.met em{display:block;font-style:normal;font-size:12px;color:var(--tx2)}
+.info{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.info h3{font-size:14px;font-weight:600;margin:0 0 4px}
+.info p{margin:0;font-size:14px;color:var(--tx2)}
+.info ul{margin:0;padding-left:18px;font-size:14px;color:var(--tx2)}
+.cmd{display:flex;gap:10px;align-items:flex-start;background:var(--code);color:var(--code-tx);border-radius:10px;padding:12px 14px}
+.cmd code{flex:1;font:13px/1.5 ui-monospace,Consolas,monospace;word-break:break-all}
+.cmd button{padding:4px 10px;border:1px solid #4b5b69;background:transparent;color:var(--code-tx);border-radius:6px;font-size:12px}
+.cmdh{font-size:13px;color:var(--tx2);margin:0 0 8px}
+</style>
+</head>
+<body>
+<main>
+<h1>Simulador ZFS: RAID-Z, mirrors y vdevs</h1>
+<p class="sub">Elegí el diseño del pool, ajustá los discos y hacé clic en un disco para simular su falla.</p>
+<div class="lv" id="lv" role="group" aria-label="Diseño del pool"></div>
+<div class="card ctl">
+<label>Discos <input type="range" id="n" step="1"><output id="nv"></output></label>
+<label>Tamaño por disco <input type="number" id="sz" value="4" min="1" max="100"> TB</label>
+<button class="act" id="rnd">Fallar disco al azar</button>
+<button class="act" id="rep">Reemplazar todos</button>
+</div>
+<div class="card">
+<div class="scroll"><div class="arr" id="arr"></div></div>
+<div class="leg">
+<span><i style="background:var(--d-bg)"></i>Dato</span>
+<span><i style="background:var(--p-bg)"></i>Paridad P</span>
+<span><i style="background:var(--q-bg)"></i>Paridad Q</span>
+<span><i style="background:var(--r-bg)"></i>Paridad R</span>
+<span><i style="background:var(--m-bg)"></i>Copia espejo</span>
+<span><i style="background:var(--x-bg)"></i>Disco caído</span>
+<span><i style="border:1px dashed var(--bd)"></i>Padding</span>
+</div>
+<p class="note">Cada letra es un bloque distinto. En RAID-Z cada bloque lleva su propia paridad, tiene ancho variable y se escribe de forma secuencial, por eso no hay write hole. Los bloques pequeños usan menos discos y el padding completa múltiplos de (paridad + 1).</p>
+</div>
+<div class="st" id="st"></div>
+<div class="met" id="met"></div>
+<div class="card">
+<p class="cmdh">Comando equivalente</p>
+<div class="cmd"><code id="cmd"></code><button id="cp">Copiar</button></div>
+</div>
+<div class="card info" id="info"></div>
+</main>
+<script>
+var ROWS=6;
+var Z=['p','q','r'];
+function G(t,a,b,p,l){return{t:t,a:a,b:b,p:p,l:l}}
+var L={
+'stripe':{name:'Stripe',min:2,max:12,step:1,kw:'',
+ groups:function(n){return[G('z',0,n,0,'Stripe ('+n+' vdevs de 1 disco)')]},
+ desc:'Cada disco es un vdev independiente y ZFS reparte los datos entre todos. No hay redundancia: si falla un disco, se pierde el pool entero.',
+ uso:['Datos temporales o reproducibles','Pools con réplica en otro equipo'],
+ pc:'Máxima capacidad y rendimiento.',cn:'Cero tolerancia a fallas, el riesgo crece con cada disco.'},
+'mirror':{name:'Mirror',min:2,max:4,step:1,kw:'mirror',
+ groups:function(n){return[G('m',0,n,0,'Mirror de '+n+' discos')]},
+ desc:'Un único vdev donde todos los discos guardan los mismos bloques. Sobrevive mientras quede un disco sano.',
+ uso:['Pool de arranque (boot pool)','Datos críticos en pocos discos'],
+ pc:'Lecturas rápidas y resilver sencillo.',cn:'Capacidad de un solo disco, escrituras al ritmo del más lento.'},
+'raidz1':{name:'RAIDZ1',min:3,max:12,step:1,kw:'raidz1',
+ groups:function(n){return[G('z',0,n,1,'vdev RAIDZ1')]},
+ desc:'Un vdev con paridad simple (similar a RAID 5, pero con stripes de ancho variable y copy-on-write). Tolera 1 disco.',
+ uso:['Pools chicos con discos pequeños','Datos con buen backup externo'],
+ pc:'Buena eficiencia de capacidad y sin write hole.',cn:'Con discos grandes, un resilver largo deja el pool expuesto a una segunda falla.'},
+'raidz2':{name:'RAIDZ2',min:4,max:12,step:1,kw:'raidz2',
+ groups:function(n){return[G('z',0,n,2,'vdev RAIDZ2')]},
+ desc:'Un vdev con doble paridad (similar a RAID 6). Tolera 2 discos cualesquiera.',
+ uso:['NAS y servidores de archivos','Backups y archivado','Discos de más de 4 TB'],
+ pc:'Muy buen equilibrio entre seguridad y capacidad. Es la opción habitual para vdevs de 6 a 10 discos.',cn:'Pierde 2 discos de capacidad y los IOPS aleatorios son los de un solo disco por vdev.'},
+'raidz3':{name:'RAIDZ3',min:5,max:12,step:1,kw:'raidz3',
+ groups:function(n){return[G('z',0,n,3,'vdev RAIDZ3')]},
+ desc:'Un vdev con triple paridad. Tolera 3 discos cualesquiera.',
+ uso:['Vdevs muy anchos (11 o más discos)','Archivado de largo plazo'],
+ pc:'Máxima protección dentro de un solo vdev.',cn:'Pierde 3 discos de capacidad y tiene más costo de cálculo.'},
+'mirrors':{name:'Mirrors en stripe',min:4,max:12,step:2,kw:'',
+ groups:function(n){var g=[];for(var i=0;i<n;i+=2)g.push(G('m',i,i+2,0,'Mirror '+(i/2+1)));return g},
+ desc:'Varios vdevs mirror de 2 discos con datos repartidos entre ellos (el equivalente ZFS de RAID 10). Tolera una falla por mirror.',
+ uso:['Máquinas virtuales y bases de datos','Cargas con muchos IOPS aleatorios'],
+ pc:'Mejores IOPS y resilver más rápido. Se amplía agregando pares.',cn:'50% de capacidad útil. Si caen los dos discos de un mirror, se pierde el pool.'},
+'2xraidz1':{name:'2 × RAIDZ1',min:6,max:12,step:2,kw:'',
+ groups:function(n){return[G('z',0,n/2,1,'vdev 1 (RAIDZ1)'),G('z',n/2,n,1,'vdev 2 (RAIDZ1)')]},
+ desc:'Dos vdevs RAIDZ1 en el mismo pool. Tolera 1 falla por vdev.',
+ uso:['Más IOPS que un único RAIDZ1 ancho'],
+ pc:'Duplica los IOPS aleatorios y acorta el resilver.',cn:'Una segunda falla dentro del mismo vdev destruye el pool.'},
+'2xraidz2':{name:'2 × RAIDZ2',min:8,max:12,step:2,kw:'',
+ groups:function(n){return[G('z',0,n/2,2,'vdev 1 (RAIDZ2)'),G('z',n/2,n,2,'vdev 2 (RAIDZ2)')]},
+ desc:'Dos vdevs RAIDZ2 en el mismo pool. Tolera 2 fallas por vdev.',
+ uso:['Almacenamiento masivo con buen rendimiento','Pools de producción grandes'],
+ pc:'Buen rendimiento con doble paridad en cada vdev.',cn:'Pierde 4 discos de capacidad y necesita 8 como mínimo.'}
+};
+var cur='raidz2',n=6,failed={};
+function tol(g){return g.t=='m'?(g.b-g.a-1):g.p}
+function letter(i){return String.fromCharCode(97+i%26)}
+function stream(g,gi,ng){
+ var m=g.b-g.a,out=[],bi=0,i,r;
+ if(g.t=='m'){
+  for(r=0;r<ROWS;r++){var l=letter(r*ng+gi);for(i=0;i<m;i++)out.push({k:i?'m':'d',l:l+'1'})}
+  return out}
+ var p=g.p,w=m-p,sizes=[4,1,5,2,6,3,2,5];
+ while(out.length<ROWS*m){
+  var lt=letter(bi*ng+gi),d=sizes[(bi+gi*2)%sizes.length],n0=out.length,rem=d,idx=1;
+  while(rem>0){
+   var c=Math.min(rem,w),q,j;
+   for(q=0;q<p;q++)out.push({k:Z[q],l:'PQR'[q]+lt});
+   for(j=0;j<c;j++)out.push({k:'d',l:lt+(idx++)});
+   rem-=c}
+  var mod=p+1,pad=(mod-(out.length-n0)%mod)%mod;
+  for(var z=0;z<pad;z++)out.push({k:'pad',l:'–'});
+  bi++}
+ return out}
+function fmt(x){return (Math.round(x*10)/10).toString().replace('.',',')}
+function buildLevels(){
+ var h='';
+ for(var k in L)h+='<button data-k="'+k+'" aria-pressed="'+(k==cur)+'">'+L[k].name+'</button>';
+ var el=document.getElementById('lv');el.innerHTML=h;
+ el.onclick=function(e){var b=e.target.closest('button');if(!b)return;cur=b.dataset.k;failed={};setRange();buildLevels();render()}
+}
+function setRange(){
+ var s=L[cur],r=document.getElementById('n');
+ r.min=s.min;r.max=s.max;r.step=s.step;
+ if(n<s.min)n=s.min;if(n>s.max)n=s.max;
+ if(s.step==2&&n%2)n=n-1<s.min?n+1:n-1;
+ r.value=n;
+}
+function devs(a,b){var o=[];for(var i=a;i<b;i++)o.push('sd'+String.fromCharCode(97+i));return o.join(' ')}
+function cmdText(s,gs){
+ var h='zpool create -o ashift=12 tank';
+ if(cur=='stripe')return h+' '+devs(0,n);
+ for(var i=0;i<gs.length;i++){
+  var g=gs[i],kw=g.t=='m'?'mirror':'raidz'+g.p;
+  h+=' '+kw+' '+devs(g.a,g.b);
+ }
+ return h;
+}
+function render(){
+ var s=L[cur],gs=s.groups(n),ng=gs.length,sz=Math.max(1,parseFloat(document.getElementById('sz').value)||1);
+ document.getElementById('nv').textContent=n;
+ var arr=document.getElementById('arr');
+ arr.style.gridTemplateColumns='repeat('+n+',minmax(0,1fr))';
+ var h='',i,r,gi;
+ for(gi=0;gi<ng;gi++)h+='<div class="gl" style="grid-column:'+(gs[gi].a+1)+'/span '+(gs[gi].b-gs[gi].a)+'">'+gs[gi].l+'</div>';
+ for(i=0;i<n;i++){
+  var f=failed[i];
+  h+='<button class="dh'+(f?' f':'')+'" data-d="'+i+'" aria-pressed="'+(!!f)+'" title="'+(f?'Reemplazar disco':'Simular falla')+'">Disco '+(i+1)+'<small>'+(f?'FAULTED':'ONLINE')+'</small></button>';
+ }
+ var lost=false,nf=0,bad=null,st=[];
+ for(gi=0;gi<ng;gi++){
+  st.push(stream(gs[gi],gi,ng));
+  var c=0;for(i=gs[gi].a;i<gs[gi].b;i++)if(failed[i])c++;
+  nf+=c;
+  if(c>tol(gs[gi])){lost=true;bad={g:gs[gi],c:c}}
+ }
+ for(r=0;r<ROWS;r++)for(gi=0;gi<ng;gi++){
+  var m=gs[gi].b-gs[gi].a;
+  for(var c2=0;c2<m;c2++){
+   var d=gs[gi].a+c2,ce=st[gi][r*m+c2];
+   if(failed[d])h+='<div class="c x">'+(lost?'✗':'?')+'</div>';
+   else h+='<div class="c '+(ce.k=='d'?'':ce.k)+'">'+ce.l+'</div>';
+  }
+ }
+ arr.innerHTML=h;
+ var e=document.getElementById('st');
+ if(lost){
+  e.className='st lo';
+  e.innerHTML='<code>state: FAULTED</code> · '+(bad.g.p==0&&bad.g.t=='z'?'Un vdev sin redundancia falló.':bad.g.l+' tiene '+bad.c+' discos caídos y solo tolera '+tol(bad.g)+'.')+' En ZFS, si un vdev se pierde, se pierde todo el pool. Hay que restaurar desde backup o desde un <code>zfs send</code> remoto.';
+ }else if(nf){
+  e.className='st dg';
+  e.innerHTML='<code>state: DEGRADED</code> · '+nf+' disco(s) caído(s). El pool sigue accesible'+(s.groups(n)[0].t=='m'?' leyendo desde las copias.':' reconstruyendo con la paridad.')+' Con <code>zpool replace</code> el resilver copia solo los bloques usados, no el disco entero.';
+ }else{
+  e.className='st ok';e.innerHTML='<code>state: ONLINE</code> · Todos los discos funcionan.';
+ }
+ var guar=Math.min.apply(null,gs.map(tol)),mx=gs.reduce(function(a,g){return a+tol(g)},0);
+ var cap=0,vd=0,ri=0,seq=0;
+ gs.forEach(function(g){
+  var m=g.b-g.a;
+  if(g.t=='m'){cap+=sz;vd++;ri+=m;seq+=m}
+  else if(g.p==0){cap+=m*sz;vd+=m;ri+=m;seq+=m}
+  else{cap+=(m-g.p)*sz;vd++;ri+=1;seq+=m-g.p}
+ });
+ var raw=n*sz;
+ document.getElementById('met').innerHTML=
+  '<div><span>Capacidad bruta</span><b>'+fmt(raw)+' TB</b></div>'+
+  '<div><span>Capacidad útil (aprox.)</span><b>'+fmt(cap)+' TB</b><em>'+Math.round(cap/raw*100)+'% antes del overhead de ZFS</em></div>'+
+  '<div><span>Tolerancia garantizada</span><b>'+guar+' disco'+(guar==1?'':'s')+'</b><em>'+(mx>guar?'hasta '+mx+' en el mejor caso':'por vdev, sin importar cuáles')+'</em></div>'+
+  '<div><span>Vdevs</span><b>'+vd+'</b><em>cada vdev aporta IOPS de escritura de ~1 disco</em></div>'+
+  '<div><span>IOPS aleatorios (escritura)</span><b>~'+vd+'×</b><em>respecto a un disco</em></div>'+
+  '<div><span>IOPS aleatorios (lectura)</span><b>~'+ri+'×</b><em>respecto a un disco</em></div>'+
+  '<div><span>Lectura secuencial</span><b>~'+seq+'×</b><em>respecto a un disco</em></div>'+
+  '<div><span>Mínimo de discos</span><b>'+s.min+'</b></div>';
+ document.getElementById('cmd').textContent=cmdText(s,gs);
+ document.getElementById('info').innerHTML=
+  '<div><h3>'+s.name+'</h3><p>'+s.desc+'</p></div>'+
+  '<div><h3>Casos de uso</h3><ul>'+s.uso.map(function(u){return'<li>'+u+'</li>'}).join('')+'</ul></div>'+
+  '<div><h3>Ventaja</h3><p>'+s.pc+'</p><h3 style="margin-top:10px">Desventaja</h3><p>'+s.cn+'</p></div>';
+}
+document.getElementById('arr').onclick=function(e){
+ var b=e.target.closest('[data-d]');if(!b)return;
+ var d=+b.dataset.d;if(failed[d])delete failed[d];else failed[d]=1;render();
+};
+document.getElementById('n').oninput=function(){n=+this.value;failed={};render()};
+document.getElementById('sz').oninput=render;
+document.getElementById('rnd').onclick=function(){
+ var free=[];for(var i=0;i<n;i++)if(!failed[i])free.push(i);
+ if(free.length)failed[free[Math.floor(Math.random()*free.length)]]=1;render();
+};
+document.getElementById('rep').onclick=function(){failed={};render()};
+document.getElementById('cp').onclick=function(){
+ var t=document.getElementById('cmd').textContent,b=this;
+ try{navigator.clipboard.writeText(t).then(function(){b.textContent='Copiado';setTimeout(function(){b.textContent='Copiar'},1500)})}catch(x){}
+};
+setRange();buildLevels();render();
+</script>
+</body>
+</html>

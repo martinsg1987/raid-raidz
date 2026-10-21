@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simulador de niveles RAID</title>
+<style>
+:root{--bg:#f2f4f6;--card:#fff;--tx:#18222b;--tx2:#566472;--bd:#d3d9df;--d-bg:#e9edf1;--d-tx:#23303c;--p-bg:#d6e6fa;--p-tx:#0c3d70;--q-bg:#e4defa;--q-tx:#3a2f87;--m-bg:#d2f0e4;--m-tx:#0b4a39;--x-bg:#fbdcdc;--x-tx:#8f2121;--w-bg:#fbe9c8;--w-tx:#6a3f06;--ok-bg:#dcf0cc;--ok-tx:#2c5410;--btn:#18222b;--btn-tx:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#12181d;--card:#1b242c;--tx:#e8edf1;--tx2:#9aa8b4;--bd:#33414c;--d-bg:#26323c;--d-tx:#dbe3ea;--p-bg:#16406f;--p-tx:#c4defa;--q-bg:#3a3380;--q-tx:#d9d3fa;--m-bg:#0e4f3d;--m-tx:#bdeedd;--x-bg:#6b2020;--x-tx:#fbcfcf;--w-bg:#5f3d0a;--w-tx:#fbe3b8;--ok-bg:#2b4b14;--ok-tx:#d0efbb;--btn:#e8edf1;--btn-tx:#12181d}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:22px;font-weight:600;margin:0 0 4px}
+.sub{color:var(--tx2);margin:0 0 18px;font-size:14px}
+.lv{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+button{font:inherit;cursor:pointer}
+.lv button{padding:7px 14px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:8px;font-size:14px}
+.lv button[aria-pressed=true]{background:var(--btn);color:var(--btn-tx);border-color:var(--btn)}
+button:focus-visible,input:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px}
+.ctl{display:flex;flex-wrap:wrap;gap:18px;align-items:center;font-size:14px}
+.ctl label{display:flex;align-items:center;gap:8px;color:var(--tx2)}
+.ctl input[type=number]{width:70px;padding:5px 8px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);font:inherit}
+.ctl output{min-width:22px;color:var(--tx);font-weight:600}
+.act{padding:6px 12px;border:1px solid var(--bd);background:transparent;color:var(--tx);border-radius:8px;font-size:13px}
+.act:hover{background:var(--d-bg)}
+.scroll{overflow-x:auto}
+.arr{display:grid;gap:6px;min-width:560px}
+.gl{font-size:12px;color:var(--tx2);text-align:center;border-bottom:2px solid var(--bd);padding-bottom:2px}
+.dh{padding:6px 2px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font-size:12px;text-align:center;line-height:1.3}
+.dh.f{background:var(--x-bg);color:var(--x-tx);border-color:var(--x-tx)}
+.dh small{display:block;color:var(--tx2);font-size:11px}
+.dh.f small{color:var(--x-tx)}
+.c{border-radius:6px;text-align:center;padding:7px 0;font:600 12.5px ui-monospace,Consolas,monospace;background:var(--d-bg);color:var(--d-tx)}
+.c.p{background:var(--p-bg);color:var(--p-tx)}
+.c.q{background:var(--q-bg);color:var(--q-tx)}
+.c.m{background:var(--m-bg);color:var(--m-tx)}
+.c.x{background:var(--x-bg);color:var(--x-tx)}
+.leg{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--tx2);margin-top:12px}
+.leg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.st{padding:10px 14px;border-radius:8px;font-size:14px;margin-bottom:14px}
+.st.ok{background:var(--ok-bg);color:var(--ok-tx)}
+.st.dg{background:var(--w-bg);color:var(--w-tx)}
+.st.lo{background:var(--x-bg);color:var(--x-tx)}
+.met{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.met div{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px}
+.met span{display:block;font-size:12px;color:var(--tx2)}
+.met b{font-size:18px;font-weight:600}
+.met em{display:block;font-style:normal;font-size:12px;color:var(--tx2)}
+.info{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.info h3{font-size:14px;font-weight:600;margin:0 0 4px}
+.info p{margin:0;font-size:14px;color:var(--tx2)}
+.info ul{margin:0;padding-left:18px;font-size:14px;color:var(--tx2)}
+</style>
+</head>
+<body>
+<main>
+<h1>Simulador de niveles RAID</h1>
+<p class="sub">Elegí un nivel, ajustá los discos y hacé clic en un disco para simular su falla.</p>
+<div class="lv" id="lv" role="group" aria-label="Nivel de RAID"></div>
+<div class="card ctl">
+<label>Discos <input type="range" id="n" step="1"><output id="nv"></output></label>
+<label>Tamaño por disco <input type="number" id="sz" value="4" min="1" max="100"> TB</label>
+<button class="act" id="rnd">Fallar disco al azar</button>
+<button class="act" id="rep">Reemplazar todos</button>
+</div>
+<div class="card">
+<div class="scroll"><div class="arr" id="arr"></div></div>
+<div class="leg">
+<span><i style="background:var(--d-bg)"></i>Dato</span>
+<span><i style="background:var(--p-bg)"></i>Paridad P</span>
+<span><i style="background:var(--q-bg)"></i>Paridad Q</span>
+<span><i style="background:var(--m-bg)"></i>Copia espejo</span>
+<span><i style="background:var(--x-bg)"></i>Disco caído</span>
+</div>
+</div>
+<div class="st" id="st"></div>
+<div class="met" id="met"></div>
+<div class="card info" id="info"></div>
+</main>
+<script>
+var ROWS=4;
+function rg(a,b){var r=[];for(var i=a;i<b;i++)r.push(i);return r}
+function split(n,k){var s=n/k,g=[];for(var i=0;i<k;i++)g.push({t:'',a:i*s,b:(i+1)*s});return g}
+var L={
+'0':{name:'RAID 0',min:2,max:12,step:1,
+ groups:function(n){return[{t:'s',a:0,b:n,l:'Striping'}]},
+ cap:function(n){return n},wp:function(n){return 1},rd:function(n){return n},
+ desc:'Reparte los datos en franjas entre todos los discos, sin ninguna redundancia. Máxima velocidad y capacidad, pero cualquier falla destruye todo el array.',
+ uso:['Cachés y datos temporales','Edición de video con respaldo aparte','Nunca para datos críticos'],
+ pc:'Todo el rendimiento y toda la capacidad.',cn:'Sin tolerancia a fallas: con N discos, el riesgo se multiplica por N.'},
+'1':{name:'RAID 1',min:2,max:4,step:1,
+ groups:function(n){return[{t:'m',a:0,b:n,l:'Espejo'}]},
+ cap:function(n){return 1},wp:function(n){return n},rd:function(n){return n},
+ desc:'Cada disco guarda una copia idéntica de los mismos datos. Sobrevive mientras quede un disco sano.',
+ uso:['Disco del sistema operativo','Servidores pequeños','Bases de datos chicas y críticas'],
+ pc:'Simple, rebuild rápido y lecturas veloces.',cn:'Aprovecha solo la capacidad de un disco (50% con 2 discos).'},
+'4':{name:'RAID 4',min:3,max:12,step:1,
+ groups:function(n){return[{t:'4',a:0,b:n,l:'Paridad dedicada'}]},
+ cap:function(n){return n-1},wp:function(n){return 4},rd:function(n){return n-1},
+ desc:'Como RAID 5, pero toda la paridad vive en un único disco dedicado. Tolera 1 falla.',
+ uso:['Casi no se usa hoy','Algunos appliances de almacenamiento'],
+ pc:'Buena eficiencia de capacidad; permite agregar discos sin recalcular paridad.',cn:'El disco de paridad es cuello de botella en escrituras.'},
+'5':{name:'RAID 5',min:3,max:12,step:1,
+ groups:function(n){return[{t:'5',a:0,b:n,l:'Paridad distribuida'}]},
+ cap:function(n){return n-1},wp:function(n){return 4},rd:function(n){return n},
+ desc:'Reparte datos y paridad (XOR) entre todos los discos, rotando la paridad en cada franja. Tolera 1 falla.',
+ uso:['Servidores de archivos','Backups y repositorios','Cargas con más lecturas que escrituras'],
+ pc:'Buen equilibrio entre capacidad, costo y velocidad de lectura.',cn:'Penalización de escritura de 4; con discos grandes el rebuild es largo y riesgoso.'},
+'6':{name:'RAID 6',min:4,max:12,step:1,
+ groups:function(n){return[{t:'6',a:0,b:n,l:'Doble paridad'}]},
+ cap:function(n){return n-2},wp:function(n){return 6},rd:function(n){return n},
+ desc:'Como RAID 5 pero con dos paridades independientes (P y Q). Tolera 2 fallas simultáneas.',
+ uso:['Discos grandes (más de 4 TB)','Archivado y NAS','Datos que no pueden perderse en un rebuild'],
+ pc:'Sobrevive a una segunda falla durante el rebuild.',cn:'Penalización de escritura de 6 y 2 discos de capacidad perdidos.'},
+'10':{name:'RAID 10',min:4,max:12,step:2,
+ groups:function(n){var g=[];for(var i=0;i<n;i+=2)g.push({t:'m',a:i,b:i+2,l:'Par '+(i/2+1)});return g},
+ cap:function(n){return n/2},wp:function(n){return 2},rd:function(n){return n},
+ desc:'Espeja los discos en pares (RAID 1) y reparte los datos entre los pares (RAID 0). Soporta una falla por par.',
+ uso:['Bases de datos','Virtualización','Cargas con muchas escrituras aleatorias'],
+ pc:'Excelente rendimiento y rebuild rápido (solo copia un disco).',cn:'50% de capacidad útil. Si caen los dos discos de un mismo par, se pierde todo.'},
+'50':{name:'RAID 50',min:6,max:12,step:2,
+ groups:function(n){return[{t:'5',a:0,b:n/2,l:'Grupo 1 (RAID 5)'},{t:'5',a:n/2,b:n,l:'Grupo 2 (RAID 5)'}]},
+ cap:function(n){return n-2},wp:function(n){return 4},rd:function(n){return n},
+ desc:'Dos grupos RAID 5 combinados con striping (RAID 0). Tolera 1 falla por grupo.',
+ uso:['Arrays grandes con buen rendimiento','Rebuilds más rápidos que un RAID 5 enorme'],
+ pc:'Más rendimiento y rebuild más corto que un RAID 5 único.',cn:'Una segunda falla en el mismo grupo pierde todo. Necesita 6 discos como mínimo.'},
+'60':{name:'RAID 60',min:8,max:12,step:2,
+ groups:function(n){return[{t:'6',a:0,b:n/2,l:'Grupo 1 (RAID 6)'},{t:'6',a:n/2,b:n,l:'Grupo 2 (RAID 6)'}]},
+ cap:function(n){return n-4},wp:function(n){return 6},rd:function(n){return n},
+ desc:'Dos grupos RAID 6 combinados con striping. Tolera 2 fallas por grupo.',
+ uso:['Almacenamiento masivo','Datos críticos con muchos discos'],
+ pc:'Máxima protección entre los niveles con paridad.',cn:'Mucho costo en capacidad (4 discos de paridad) y escrituras lentas.'}
+};
+var tolOf={s:0,'4':1,'5':1,'6':2};
+function tol(g){return g.t=='m'?(g.b-g.a-1):tolOf[g.t]}
+var cur='5',n=4,failed={};
+function cells(g,r,id){
+ var m=g.b-g.a,c=[],i;
+ if(g.t=='s'){for(i=0;i<m;i++)c.push({k:'d',l:'D'+(id+i)});return{c:c,u:m}}
+ if(g.t=='m'){for(i=0;i<m;i++)c.push({k:i?'m':'d',l:'D'+id});return{c:c,u:1}}
+ var p,q=-1;
+ if(g.t=='4')p=m-1;else p=m-1-(r%m);
+ if(g.t=='6')q=(p+1)%m;
+ var k=0;
+ for(i=0;i<m;i++){
+  if(i==p)c.push({k:'p',l:'P'+(r+1)});
+  else if(i==q)c.push({k:'q',l:'Q'+(r+1)});
+  else{c.push({k:'d',l:'D'+(id+k)});k++}
+ }
+ return{c:c,u:k}
+}
+function fmt(x){return (Math.round(x*10)/10).toString().replace('.',',')}
+function buildLevels(){
+ var h='';
+ for(var k in L)h+='<button data-k="'+k+'" aria-pressed="'+(k==cur)+'">'+L[k].name+'</button>';
+ var el=document.getElementById('lv');el.innerHTML=h;
+ el.onclick=function(e){var b=e.target.closest('button');if(!b)return;cur=b.dataset.k;failed={};setRange();buildLevels();render()}
+}
+function setRange(){
+ var s=L[cur],r=document.getElementById('n');
+ r.min=s.min;r.max=s.max;r.step=s.step;
+ if(n<s.min)n=s.min;if(n>s.max)n=s.max;
+ if(s.step==2&&n%2)n=n-1<s.min?n+1:n-1;
+ r.value=n;
+}
+function render(){
+ var s=L[cur],gs=s.groups(n),sz=Math.max(1,parseFloat(document.getElementById('sz').value)||1);
+ document.getElementById('nv').textContent=n;
+ var arr=document.getElementById('arr');
+ arr.style.gridTemplateColumns='repeat('+n+',minmax(0,1fr))';
+ var h='',i,r,gi;
+ for(gi=0;gi<gs.length;gi++){var g=gs[gi];h+='<div class="gl" style="grid-column:'+(g.a+1)+'/span '+(g.b-g.a)+'">'+g.l+'</div>'}
+ for(i=0;i<n;i++){
+  var f=failed[i];
+  h+='<button class="dh'+(f?' f':'')+'" data-d="'+i+'" aria-pressed="'+(!!f)+'" title="'+(f?'Reemplazar disco':'Simular falla')+'">Disco '+(i+1)+'<small>'+(f?'caído':'ok')+'</small></button>';
+ }
+ var lost=false,nf=0,bad=null;
+ for(gi=0;gi<gs.length;gi++){
+  var c=0;for(i=gs[gi].a;i<gs[gi].b;i++)if(failed[i])c++;
+  nf+=c;
+  if(c>tol(gs[gi])){lost=true;bad={g:gs[gi],c:c}}
+ }
+ for(r=0;r<ROWS;r++){
+  var id=r*dataPerRow(gs)+1;
+  for(gi=0;gi<gs.length;gi++){
+   var o=cells(gs[gi],r,id);id+=o.u;
+   for(i=0;i<o.c.length;i++){
+    var d=gs[gi].a+i,ce=o.c[i];
+    if(failed[d])h+='<div class="c x">'+(lost?'✗':'?')+'</div>';
+    else h+='<div class="c '+(ce.k=='d'?'':ce.k)+'">'+ce.l+'</div>';
+   }
+  }
+ }
+ arr.innerHTML=h;
+ var st=document.getElementById('st');
+ if(lost){
+  st.className='st lo';
+  st.textContent=cur=='0'?'Array perdido: RAID 0 no tiene redundancia y falló un disco.':'Array perdido: '+bad.g.l+' tiene '+bad.c+' discos caídos y solo tolera '+tol(bad.g)+'. Hay que restaurar desde backup.';
+ }else if(nf){
+  st.className='st dg';
+  st.textContent='Modo degradado: '+nf+' disco(s) caído(s). Los datos siguen accesibles'+(cur=='1'||cur=='10'?' leyendo desde las copias espejo.':' recalculándolos con la paridad (XOR).')+' Reemplazá el disco para iniciar el rebuild.';
+ }else{
+  st.className='st ok';st.textContent='Estado óptimo: todos los discos funcionan.';
+ }
+ var guar=Math.min.apply(null,gs.map(tol)),max=gs.reduce(function(a,g){return a+tol(g)},0);
+ var cap=s.cap(n)*sz,raw=n*sz;
+ var tg=cur=='1'?(n-1):guar,tm=max;
+ var m=document.getElementById('met');
+ m.innerHTML=
+  '<div><span>Capacidad bruta</span><b>'+fmt(raw)+' TB</b></div>'+
+  '<div><span>Capacidad útil</span><b>'+fmt(cap)+' TB</b><em>'+Math.round(cap/raw*100)+'% de eficiencia</em></div>'+
+  '<div><span>Tolerancia garantizada</span><b>'+tg+' disco'+(tg==1?'':'s')+'</b><em>'+(tm>tg?'hasta '+tm+' en el mejor caso':'sin importar cuáles fallen')+'</em></div>'+
+  '<div><span>Mínimo de discos</span><b>'+s.min+'</b></div>'+
+  '<div><span>Lectura</span><b>~'+s.rd(n)+'×</b><em>respecto a un disco</em></div>'+
+  '<div><span>Penalización de escritura</span><b>'+s.wp(n)+'</b><em>I/O por escritura pequeña</em></div>';
+ document.getElementById('info').innerHTML=
+  '<div><h3>'+s.name+'</h3><p>'+s.desc+'</p></div>'+
+  '<div><h3>Casos de uso</h3><ul>'+s.uso.map(function(u){return'<li>'+u+'</li>'}).join('')+'</ul></div>'+
+  '<div><h3>Ventaja</h3><p>'+s.pc+'</p><h3 style="margin-top:10px">Desventaja</h3><p>'+s.cn+'</p></div>';
+}
+function dataPerRow(gs){
+ var t=0;for(var i=0;i<gs.length;i++)t+=cells(gs[i],0,1).u;return t;
+}
+document.getElementById('arr').onclick=function(e){
+ var b=e.target.closest('[data-d]');if(!b)return;
+ var d=+b.dataset.d;if(failed[d])delete failed[d];else failed[d]=1;render();
+};
+document.getElementById('n').oninput=function(){n=+this.value;failed={};render()};
+document.getElementById('sz').oninput=render;
+document.getElementById('rnd').onclick=function(){
+ var free=[];for(var i=0;i<n;i++)if(!failed[i])free.push(i);
+ if(free.length){failed[free[Math.floor(Math.random()*free.length)]]=1}render();
+};
+document.getElementById('rep').onclick=function(){failed={};render()};
+setRange();buildLevels();render();
+</script>
+</body>
+</html>
